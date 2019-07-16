@@ -1,0 +1,249 @@
+---
+- hosts: my
+  become: yes
+
+
+  tasks:
+#  - name: Reboot remote server
+#    shell: sleep 5 && reboot now
+#    async: 1
+#    poll: 0
+
+  - debug: var=inventory_hostname
+
+
+#  - name: Wait till remote server come up online
+#    wait_for:
+#      host: "{{ inventory_hostname }}"
+#      state: started
+#      delay: 5
+#      sleep: 1
+#      timeout: 10
+
+
+  - name: Wait 300 seconds for port 22 to become open and contain "OpenSSH"
+    wait_for:
+      port: 22
+    host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+#     search_regex: OpenSSH
+#    delay: 10
+#     connection: local
+    delegate_to: host_local
+
+
+====================================================================================
+
+
+---
+- hosts: 127.0.0.1
+  become: yes
+
+#  vars: peremenaya = Password
+
+
+  - name: Install packages RedHat
+    yum: name={{ item }} state=latest
+    with_items:
+      - tree
+      - mc
+      - traceroute
+    when: ansible_facts['os_family'] == "RedHat"
+
+
+  - name: Install packages Centos
+    apt: name={{ item }} state=latest
+    with_items:
+      - tree
+      - mc
+      - traceroute
+    when: ansible_facts['os_family'] == "Centos"
+
+
+  - name: Create file and insert the variable
+    copy:
+      dest: text_template
+      owner: root
+      group: root
+      mode: '0750'
+      content: |
+        This my cool file!
+        I like him a lot!
+        The password is {{ peremenaya }}
+
+
+
+====================================================================================
+
+
+---
+- hosts: local
+  gather_facts: false
+  vars:
+    ec2_region: eu-central-1
+    instance_name: Ansible-instance
+    vpc_sub_id: subnet-2461764f
+    key_name: Frankfurt_HOME_key
+    sec_group_name: MyFirewall-HTTP-HTTPS-RDP
+    eip: false
+    inst_type: t2.micro
+
+  tasks:
+  - name: start an instance with a lot of specific property
+    ec2_instance:
+        region: "{{ ec2_region }}"
+        name: "{{ instance_name }}"
+        vpc_subnet_id: "{{ vpc_sub_id }}"
+        key_name: "{{ key_name }}"
+        security_group: "{{ sec_group_name }}"
+        network:
+          assign_public_ip: "{{ eip }}"
+        tags:
+          Environment: Testing
+          Attempt: first
+        instance_type: "{{ inst_type }}"
+    #    image_id: ami-123456
+        volumes:
+        - device_name: /dev/sda1
+          ebs:
+            delete_on_termination: true
+        cpu_options:
+            core_count: 1
+            threads_per_core: 1
+
+====================================================================================
+---
+- hosts: local
+  gather_facts: false
+  vars:
+    ec2_region: eu-central-1
+    instance_name: Ansible-instance
+    vpc_sub_id: subnet-2461764f
+    key_name: Frankfurt_HOME_key
+    sec_group_name: MyFirewall-HTTP-HTTPS-RDP
+    eip: false
+    inst_type: t2.micro
+
+  tasks:
+  - name: start an instance with a lot of specific property
+    ec2_instance:
+        region: "{{ ec2_region }}"
+        state: absent
+        filters:
+          instance-state-name: running
+
+
+====================================================================================
+- hosts: "{{ hosts }}"
+  gather_facts: false
+  become: true
+
+  tasks:
+  - name: Create some necessary groups
+    group:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - admins
+      - developers
+      - Awesome_Gr0uP
+    tags: add_group
+    
+
+  - name: Add the user 'james' with a bash shell, appending the group 'admins' and 'developers' to the user's groups with specific uid
+    user:
+      name: james
+      shell: /bin/bash
+      comment: John Doe
+      uid: 1040
+      groups: admins,developers
+      append: yes
+    tags: add_user
+
+
+  - name: Create a 2048-bit SSH key for user james in ~james/.ssh/id_rsa
+    user:
+      name: james
+      generate_ssh_key: yes
+      ssh_key_bits: 2048
+      ssh_key_file: .ssh/id_rsa
+    tags: create_key
+
+
+  - name: Set authorized key taken from file
+    authorized_key:
+      user: james
+      state: present
+      key: "{{ lookup('file', '/home/james/.ssh/id_rsa.pub') }}"
+    tags: create_pub_key
+
+
+  - name: Remove the user 'james'
+    user:
+      name: james
+      state: absent
+      remove: yes
+    tags: remove_user
+
+  - name: Ensure some groups 
+    group:
+      name: "{{ item }}"
+      state: absent
+    with_items:
+      - admins
+      - developers
+      - Awesome_Gr0uP
+    tags: remove_group
+====================================================================================
+
+
+- hosts: "{{ hosts }}"
+  gather_facts: false
+  become: true
+
+
+  tasks:
+  - name: Check application process is running/stopped
+    shell: if ps -aef | egrep 'apache|http' |grep -v grep > /dev/null; then echo 'process running'; else echo 'process not running'; fi
+    register: app_proc_check
+
+  - name: Fail Message as application is running
+    fail: msg="The host {{ inventoty_hostname }} have a running important process. Stop it please."
+    when: app_proc_check.stdout == "process running"
+
+  - name: Update the kernel on RedHat OS family
+    yum: name=kernel state=latest
+    when: app_proc_check.stdout == "process not running" and  ansible_facts['os_family'] == "Centos" # COMMENT!!! or ansible_facts['os_family'] == "RedHat"
+    register: yum_kernel
+
+  - name: Check if reboot required after kernel update
+    shell: |
+        KERNEL_NEW=$(rpm -q --last kernel | head -1 | awk '{print $1}' | sed 's/kernel-//');
+        KERNEL_NOW=$(uname -r);
+        if [[ $KERNEL_NEW != $KERNEL_NOW ]] ;
+        then echo "reboot is needed";
+        else echo "reboot isn't needed";
+        fi
+    register: reboot_required
+    tags: check_on_reboot
+
+  - name: restart system
+    command: echo -r +1 "Rebooting system after patching"
+    async: 0
+    poll: 0
+    when: reboot_required.stdout.find("reboot is needed")
+    register: reboot_started
+    tags: check_on_reboot
+
+  - name: pause for 30 seconds
+    pause: seconds=30 prompt="Finally, you can relax!"
+
+  - name: Check that system is up and responding through SSH
+    local_action:
+        module: wait_for
+            host={{ inventoty_hostname }}
+            port=22
+            delay=15
+            timeout=300
+            state=started
+        when: reboot_started
+    tags: check

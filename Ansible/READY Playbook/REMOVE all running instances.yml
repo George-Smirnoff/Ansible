@@ -1,0 +1,14 @@
+---
+- hosts: local
+  gather_facts: false
+  connection: local
+  vars:
+    ec2_region: eu-central-1
+    
+  tasks:
+  - name: Remove all running instances
+    ec2_instance:
+        region: "{{ ec2_region }}"
+        state: absent
+        filters:
+          instance-state-name: running

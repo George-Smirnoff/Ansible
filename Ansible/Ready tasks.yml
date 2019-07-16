@@ -1,0 +1,104 @@
+
+
+
+======================= DEBUG =======================
+
+- name: Debug
+     debug:
+       msg: "Create the {{ file_name_2 }} file in the {{ path_3 }}/{{ file_name_2 }} directory"
+
+
+
+  Create the custom error for task
+- name: Echo output
+  shell: echo WE print this Key word as example!
+  failed_when: "'Key word' in result.stdout"
+# or you can use 'rc'  failed_when: result.rc == 0
+  register: result
+# You can check the task's output by debug's var  
+#- debug: var=result
+
+
+
+
+
+
+======================= Create Something =======================
+
+  Create Directory
+- name: "Create dir with {{ path_1 }}"
+    file:
+      path: "{{ path_1 }}"
+      state: directory
+      mode: '0750'
+ 
+
+
+  Create the file with context
+- name: Create the {{ file_name_2}} file
+ copy:
+   dest: "{{ path_2 }}/{{ file_name_2 }}"
+   owner: root
+   group: root
+   mode: '0750'
+   content: |
+     This my cool file!
+     I like him a lot!
+
+
+  Create the empty file
+- name: Create the {{ file_name_2 }} file
+     file:
+       path: "{{ path_3 }}/{{ file_name_2 }}"
+       owner: root
+       group: root
+       mode: '0750'
+       state: touch
+
+
+
+
+======================= Install Something =======================
+
+
+  Install Apache server for RedHat
+- name: Install Apache server for RedHat
+  yum:
+    name: httpd
+    state: latest
+
+
+
+
+
+
+
+======================= Run Something =======================
+
+  Start Web Server Apache on the RedHat
+- name: Start Web Server Apache on the RedHat
+  service:
+    name: httpd
+    state: started
+    enabled: yes
+
+
+
+
+  Reboot remote server
+- name: Reboot remote server
+  shell: sleep 5 && reboot now
+  async: 1
+  poll: 0
+ 
+
+
+
+   Wait 10 seconds for port 22 to become open #and contain "OpenSSH"
+- name: Wait 10 seconds for port 22 to become open and contain "OpenSSH"
+  wait_for:
+    port: 22
+    host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+#     search_regex: OpenSSH
+    delay: 10
+  delegate_to: host_local

@@ -1,0 +1,184 @@
+
+
+Файл ansible.cfg ищется в порядке:
+
+1) Файл указанный в пкременной ANSIBLE_CONFIG
+2) ./ansible.cfg в текущем катологе
+3)  ~/ansible.cfg в домашнем катологе
+4) /etc/ansible/ansible.cfg
+
+
+############################ ПОРЯДОК ВЫПОЛНЕНИЯ Playbook/Task ############################
+
+======== СТАРТ С ЗАДАЧИ по Имени в Операции (YML-файле) ========
+ansible-playbook web-notls.yml --start-at-task="enable configuration"
+
+
+======== ПОСЛЕДОВАТЕЛЬНОЕ ВЫПОЛНЕНИЕ ========
+всего плэйбука с последующим переходом на next host согласно order in hosts
+Называется "Rolling Updates":
+
+- hosts: webservers
+  serial: 1
+  tasks:
+    - name: ...
+
+
+======== Check изменений ansible-ом без их применеия  ========
+ansible-playbook foo.yml --check --diff
+
+
+
+======== IGNORE_ERRORS в task ========
+Если указанная таска выполнена с ошибкой
+мы все равно продолжаем выполнение плэйбука.
+- name: restart nginx
+    service: name=nginx state=restarted
+    register: output
+    ignore_errors: True
+  - debug: var=output
+  
+
+======== ANY_ERRORS_FATAL на весь плэйбук ========
+Если в процессе выполнения таски словим ошибку хоть на одном
+сервере, выполнение плэйбука на остальных серверах будет 
+так же прекращено.
+- hosts: all 
+  any_error_fatal: True
+  become : yes
+
+
+======== FAILED_WHEN на таск ========
+Мы создаем свою искуственную ошибку с тригером на вывод 
+выполнения таски [ чаще всего stdout/stderr/rc, где rc - return command (0, 1, 2...) ]
+failed_when: "'Key word' in result.stdout"
+ 
+======== ПРОЧЕКАТЬ РАБОТУ JINJA Templates ========
+Ansible (using --check) 
+Create test playbook jinja2test.yml:
+
+---
+- hosts: 127.0.0.1
+  tasks:
+  - name: Test jinja2template
+    template: src=test.j2 dest=test.conf
+and run it:
+
+ansible-playbook jinja2test.yml --check --diff --connection=local
+
+
+
+
+======== Создать директории для ROLE ========
+ansible-galaxy init <role name>
+
+  roles:
+  - role: include-import-check
+
+
+
+
+
+
+======== ВНЕШНИЕ ПЕРЕМЕННЫЕ EXTERNAL VARIABLES ========
+Переменные переданные через extra-vars имеют наивысший приоритет,
+они перезаписывают значения для всех указанныз переменных.
+Пишется во время запуска playbook-a:
+
+ansible-playbook Playbook_name.yml --extra-var "MYHOSTS=db_server"
+
+Можно писать:
+		--extra-var
+		--extra-vars
+		-e
+		
+
+		
+======== ИСПОЛЬЗОВАНИЕ TAG-ов ========
+Отобразить все тэги задействованые в playbook-е:
+ansible-playbook Manage_servers.yml --list-tag	
+
+Запустить playbook с тэгами:
+ansible-playbook Manage_servers.yml  --tag add_user --tag add_group
+
+		
+
+
+======== INCLUDE И IMPORT в Ansible ========
+
+IMPORT - когда ансибл запускается, он проверяет синтаксис и если встречает 
+	import, то сразу находит файл на который он ссылается и вставляет его в сценарий.
+	Если в подгружаемом файле существуют переданные, он сразу же их подставляет.
+	
+	
+INCLUDE - срабытывает только когда уже идет выполнение сленария, и мы добрались добрались
+	до include, тогда он подкачивает файл на который ссылаемся и подставляет в него пкременные
+	если они там есть.
+
+Переменные можно сразу подкидывать в INCLUDE/IMPORT
+
+Examples:
+- include: ../include.yml 
+#где ../include.yml - путь к файлу.
+- include: ../include.yml  my_var="
+
+- name: Include task list in play only if the condition is true
+      include: "{{ hostvar }}.yaml"
+      static: no
+      when: hostvar is define   #### AWESOME THING!!!
+
+Запустить РОЛЬ как TASK!!! С помощью include_role:
+	  
+- include_role: create-db
+ with_items:
+ - 'test1'
+ - 'tester'
+ - 'monkey'
+ - 'production'
+
+
+ 
+ 
+======== ОПРЕДЕЛИТЬ СЕРВЕР на котором БУДУТ ЗАПУСКАТЬСЯ ТАСКИ ========
+
+Чтобы определить сервер, на котором мы хотим запускать отдельные таски или блоки
+можно использовать "delegate_to" опцию. Синтаксис:
+Example:	
+	delegate_to: local
+	в один ряд с началом имени таски или блока.
+	local - это група/хост на которую переводим таску.
+При этом, если мы запустили playbook на список серверов, каждый сервер будет
+пытаться заранать таску, но запускать её будет с переводом на указанный сервер.
+
+Ёще один вариант определить сервер для запуска таски, использовать "run_once":
+Example:
+	run_once: True
+	в один ряд с началом имени таски или блока.
+В этом случае таска будет выполнена один раз, первым хостом, который её заберёт.
+Порядок хостов соответствует порядку в hosts.cfg
+
+
+
+
+========  DYNAMIC INVENTORY ========
+
+Скачиваем ec2.ini и ec2.py файлы с оф сайта ансибла.
+Делаем исполняемым chmod +x ec2.ini
+
+Import-руем AWS_ACCESS_KEY_ID и AWS_SECRET_ACCESS_KEY в среду 
+export AWS_ACCESS_KEY_ID='AK123'
+export AWS_SECRET_ACCESS_KEY='abc123'
+либо указываем в файлике /etc/boto.cfg (в конце)
+
+Закоменчиваем строки с RDS и elasticache сервисами.
+Если они не задействованы
+и запускаем команду для проверки:
+	./ec2.py --list --refresh-cache
+Для запуска playbook-a для определённой группы:
+	ansible -i ec2.py -u ec2-user eu-central-1b -m ping
+#где  ec2-user - логин
+      eu-central-1b - группа, которую мы взяли из предыдущей команды
+
+
+
+	

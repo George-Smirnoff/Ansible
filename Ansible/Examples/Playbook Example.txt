@@ -1,0 +1,81 @@
+---
+- name: Install Apache and upload the files
+  hosts: my
+  become: True
+
+
+  vars:
+    source_dir: /root/New_Ansible/files
+    dest_dir: /tmp
+
+  tasks:
+  - name: Check and print Linux Distr
+    debug:
+      msg: "It's a {{ ansible_os_family }} distr"
+
+  - name: Redhat Block
+    block: #  ======= Block for RedHat ======
+    - name: Install Apache server for RedHat
+      yum:
+        name: httpd
+        state: latest
+
+    - name: Start Web Server Apache on the RedHat
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    when: ansible_os_family == "RedHat"
+
+
+  - name: Centos block
+    block: #  ====== Block For Ubuntu ======
+
+    - name: Install Apache server for Centos
+      yum:
+       name: apache2
+       state: latest
+
+    - name: Start Web Server Apache on the Ubuntu
+      service:
+        name: apache2
+        state: started
+        enabled: yes
+
+    when: ansible_os_family == "Debian"
+
+
+  - name: Copy files by the loop
+    copy:
+#                                                       item - with_item работает!!! пробуем with_fileglob
+#     src: "{{ source_dir }}/{{ item }}"
+     src: "{{ item }}"
+     dest: "{{ dest_dir }}"
+     owner: root
+     group: root
+     mode: '0755'
+    with_fileglob:
+    - "{{ source_dir }}/*"
+#    with_items:
+#      - ioy.by
+#      - yohu.txt
+#      - yoyo.txt
+    notify:
+      - Restart Apache RedHat
+      - Restart Apache Centos
+
+
+
+  handlers:
+   - name: Restart Apache RedHat
+     service:
+      name: httpd
+      state: restarted
+     when: ansible_os_family == "RedHat"
+
+   - name: Restart Apache Centos
+     service:
+      name: apache2
+      state: restarted
+     when: ansible_os_family == "Debian"

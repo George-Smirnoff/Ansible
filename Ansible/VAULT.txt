@@ -1,0 +1,33 @@
+
+
+### Create file that will be encrypted by ansible-vault
+ansible-vault create encrypted.file
+
+### Show file that was encrypted by ansible-vault
+ansible-vault view encrypted.file
+
+### Edit file that was be encrypted by ansible-vault
+ansible-vault edit encrypted.file
+
+### Change password for  file that was be encrypted by ansible-vault
+ansible-vault rekey encrypted.file
+
+### Run the encrypted playbook 
+ansible-playbook encrypted.yml --ask-vault-pass
+
+### Run the encrypted playbook with password in the file
+ansible-playbook vault-test.yml --vault-password-file=mypass_file.txt
+
+### Encrypt the file/playbook 
+ansible-vault encrypt encrypted.file
+
+### Decrypt the file/playbook
+ansible-vault decrypt encrypted.file
+
+### Чтобы зашифровать определёный фрагмент в файле, можно использовать
+ansible-vault encrypt_string
+	либо в одну строчку
+echo -n "NewPasswd_taDa" | ansible-vault encrypt_string
+
+потом подставляем зашифрованный элемент начиная с !vault |
+

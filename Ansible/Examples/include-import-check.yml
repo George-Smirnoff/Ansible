@@ -1,0 +1,58 @@
+---
+- name: Check the include/import
+  hosts: "{{ HOSTS }}"
+  become: True
+
+
+  vars:
+    file_name_1: file1.txt
+    file_name_2: file2.yml
+    path_1: /opt
+    path_2: /tmp
+    path_3: ~
+    BLOCK: block_1
+
+  tasks:
+  - block:
+    - name: "Create dir with {{ path_1 }}"
+      file:
+        path: "{{ path_1 }}"
+        state: directory
+        mode: '0750'
+
+    - name: Create the {{ file_name_1}} file
+      file:
+        path: "{{ path_1 }}/{{ file_name_1 }}"
+        owner: root
+        group: root
+        mode: '0750'
+        state: touch
+
+    when:  BLOCK == 'block_1'
+
+
+
+  - block:
+    - name: Create dir with {{ path_2 }}
+      file:
+        path: "{{ path_2 }}"
+        state: directory
+        mode: '0750'
+
+    - name: Create the {{ file_name_2}} file
+      file:
+        path: "{{ path_2 }}/{{ file_name_2 }}"
+        owner: root
+        group: root
+        mode: '0750'
+        state: touch
+
+    - name: Create the {{ file_name_2 }} file
+      file:
+        path: "{{ path_2 }}/{{ file_name_2 }}"
+        owner: root
+        group: root
+        mode: '0750'
+        state: touch
+
+    when:  BLOCK == 'block_2'

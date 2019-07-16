@@ -1,0 +1,60 @@
+- hosts: "{{ hosts }}"
+  gather_facts: false
+  become: true
+
+  tasks:
+  - name: Create some necessary groups
+    group:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - admins
+      - developers
+      - Awesome_Gr0uP
+    tags: add_group
+    
+
+  - name: Add the user 'james' with a bash shell, appending the group 'admins' and 'developers' to the user's groups with specific uid
+    user:
+      name: james
+      shell: /bin/bash
+      comment: John Doe
+      uid: 1040
+      groups: admins,developers
+      append: yes
+    tags: add_user
+
+
+  - name: Create a 2048-bit SSH key for user james in ~james/.ssh/id_rsa
+    user:
+      name: james
+      generate_ssh_key: yes
+      ssh_key_bits: 2048
+      ssh_key_file: .ssh/id_rsa
+    tags: create_key
+
+
+  - name: Set authorized key taken from file
+    authorized_key:
+      user: james
+      state: present
+      key: "{{ lookup('file', '/home/james/.ssh/id_rsa.pub') }}"
+    tags: create_pub_key
+
+
+  - name: Remove the user 'james'
+    user:
+      name: james
+      state: absent
+      remove: yes
+    tags: remove_user
+
+  - name: Ensure some groups 
+    group:
+      name: "{{ item }}"
+      state: absent
+    with_items:
+      - admins
+      - developers
+      - Awesome_Gr0uP
+    tags: remove_group

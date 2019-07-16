@@ -1,0 +1,22 @@
+
+
+List available plugins:
+$ ansible-doc -l 
+
+# Отображает всю usage инфу об указаном модуле
+Show playbook snippet for specified plugin(s) [that was showed by command above]:
+$ ansible-doc -s service
+or
+$ ansible-doc -s yum
+
+#####
+Output all hosts info, works as inventory script:
+$ ansible-inventory --list
+or
+
+Create inventory graph, if supplying pattern it must be a valid group name
+$ ansible-inventory --graph
+
+
+# Проверить синтаксис playbook-a
+$ ansible-playbook playbooks/Copy_files_by_item.yml --syntax-check

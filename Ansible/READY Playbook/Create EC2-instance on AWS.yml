@@ -1,0 +1,34 @@
+---
+- hosts: host_local
+  gather_facts: false
+  vars:
+    ec2_region: eu-central-1
+    instance_name: Ansible-instance
+    vpc_sub_id: subnet-2461764f
+    key_name: Frankfurt_HOME_key
+    sec_group_name: MyFirewall-HTTP-HTTPS-RDP
+    public_ip: true
+    inst_type: t2.micro
+
+  tasks:
+  - name: start an instance with a lot of specific properties
+    ec2_instance:
+        region: "{{ ec2_region }}"
+        name: "{{ item }}"
+        vpc_subnet_id: "{{ vpc_sub_id }}"
+        key_name: "{{ key_name }}"
+        security_group: "{{ sec_group_name }}"
+        network:
+          assign_public_ip: "{{ public_ip }}"
+        tags:
+          Environment: Testing
+          Attempt: first
+        instance_type: "{{ inst_type }}"
+        image_id: ami-02fc41eea185ef7b2                #AMI from launch instance
+        volumes:
+        - device_name: /dev/sda1
+          ebs:
+            delete_on_termination: true
+    with_items:
+      - "{{ instance_name }}_1"
+      - "{{ instance_name }}_2"

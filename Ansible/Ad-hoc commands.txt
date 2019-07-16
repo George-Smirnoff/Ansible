@@ -1,0 +1,30 @@
+
+# Выкидывает всю инфу о хосте, выполняется "в тени" при каждом запуске ansible:
+Gathers facts about remote hosts:
+$ ansible DEV -m setup
+
+
+# ВЫПОЛНЕНИЕ SHELL команд:
+ansible all -m shell -a "uptime"
+
+# Модуль YUM
+# всё одно и тоже, "установка":
+ansible all -m yum -a "name=httpd state=installed" -b
+ansible all -m yum -a "name=httpd state=latest" -b
+ansible all -m yum -a "name=httpd state=present" -b
+
+
+
+
+
+# СКОПИРОВАТЬ файл с ЛОКАНОГО хоста на УДАЛЁННЫЕ.
+# если файл был изменён, то он перезальется при повторной команде.
+ansible all -m copy -a "src=privet.txt dest=/root mode=777" -b
+
+
+# Удалить файд.
+ansible DEV -m file -a "path=/root/privet.txt state=absent"
+
+
+# СКАЧАТЬ файл по URL:
+ansible all -m get_url -a "url=https://notepad-plus-plus.org/download/v7.6.6.htmlhttps://notepad-plus-plus.org/repository/7.x/7.6.6/npp.7.6.6.Installer.exe dest=/root" -b
